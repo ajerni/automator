@@ -8,10 +8,12 @@ export default function StreamCanvas({
   canvasRef,
   interactive,
   send,
+  hint = "Click here, then interact with the page to record",
 }: {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   interactive: boolean;
   send: (msg: unknown) => void;
+  hint?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
@@ -101,9 +103,9 @@ export default function StreamCanvas({
         className="h-full w-full"
         style={{ cursor: interactive ? "crosshair" : "default" }}
       />
-      {interactive && (
+      {interactive && hint && (
         <div className="pointer-events-none absolute left-2 top-2 rounded-md bg-black/60 px-2 py-1 text-xs text-white">
-          Click here, then interact with the page to record
+          {hint}
         </div>
       )}
     </div>

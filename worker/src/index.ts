@@ -51,6 +51,11 @@ interface Step {
   key?: string;
   variableKey?: string;
   secret?: boolean;
+  /** Recorded viewport click coordinates (for positional / fallback clicks). */
+  x?: number;
+  y?: number;
+  /** When true, replay this click by coordinates rather than by selector. */
+  positional?: boolean;
 }
 
 interface Variable {
@@ -74,6 +79,7 @@ class Session {
   steps: Step[] = [];
   recording = false;
   lastUrl = "";
+  startUrl = "";
 
   constructor(ws: WebSocket) {
     this.ws = ws;
@@ -113,15 +119,11 @@ class Session {
     await this.context.addInitScript(RECORDER_SOURCE);
     this.page = await this.context.newPage();
 
-    this.page.on("framenavigated", (frame) => {
-      if (frame !== this.page?.mainFrame()) return;
-      const url = frame.url();
-      if (!url || url === "about:blank") return;
-      if (this.recording && url !== this.lastUrl) {
-        this.lastUrl = url;
-        this.pushStep({ type: "goto", url, label: url });
-      }
-    });
+    // NOTE: we deliberately do NOT record navigations as steps. Navigations that
+    // happen during recording are side effects of user actions (clicks / Enter /
+    // form submits) and their URLs freeze the recording-time state (e.g. the old
+    // search query). Replaying the recorded actions reproduces the navigation
+    // naturally, so recording a hardcoded goto would re-apply stale values.
 
     this.client = await this.context.newCDPSession(this.page);
     await this.client.send("Page.enable");
@@ -160,16 +162,32 @@ class Session {
     value?: string;
     label?: string;
     secret?: boolean;
+    key?: string;
+    x?: number;
+    y?: number;
+    positional?: boolean;
   }) {
     if (action.type === "click") {
-      // Avoid duplicate consecutive identical clicks.
+      // Avoid duplicate consecutive identical clicks (same target & position).
       const last = this.steps[this.steps.length - 1];
-      if (last && last.type === "click" && last.selector === action.selector) return;
+      if (
+        last &&
+        last.type === "click" &&
+        last.selector === action.selector &&
+        last.positional === action.positional &&
+        last.x === action.x &&
+        last.y === action.y
+      ) {
+        return;
+      }
       this.pushStep({
         type: "click",
         selector: action.selector,
         selectors: action.selectors,
         label: action.label,
+        x: action.x,
+        y: action.y,
+        positional: action.positional,
       });
     } else if (action.type === "fill") {
       // Collapse repeated typing into the same field to a single step.
@@ -197,6 +215,24 @@ class Session {
         value: action.value,
         label: action.label,
       });
+    } else if (action.type === "press") {
+      // De-dupe an identical consecutive press.
+      const last = this.steps[this.steps.length - 1];
+      if (
+        last &&
+        last.type === "press" &&
+        last.selector === action.selector &&
+        last.key === action.key
+      ) {
+        return;
+      }
+      this.pushStep({
+        type: "press",
+        selector: action.selector,
+        selectors: action.selectors,
+        key: action.key,
+        label: action.label,
+      });
     }
   }
 
@@ -207,6 +243,7 @@ class Session {
     this.lastUrl = "";
     await this.startScreencast();
     const target = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+    this.startUrl = target;
     await this.page!.goto(target, { waitUntil: "domcontentloaded" }).catch(() => {});
   }
 
@@ -252,7 +289,7 @@ class Session {
       type: "record:done",
       steps: result.steps,
       variables: result.variables,
-      startUrl: result.steps.find((s) => s.type === "goto")?.url ?? "",
+      startUrl: this.startUrl,
     });
   }
 
@@ -275,6 +312,14 @@ class Session {
       }
       for (let i = 0; i < steps.length; i++) {
         const step = steps[i];
+        // Skip recorded navigations: the initial page is opened from startUrl
+        // above, and any later navigation must happen as a natural consequence
+        // of replaying the click / press that caused it. Replaying a recorded
+        // goto would re-apply the stale recording-time URL (and its values).
+        if (step.type === "goto") {
+          send(this.ws, { type: "play:step", index: i, step, status: "done" });
+          continue;
+        }
         send(this.ws, { type: "play:step", index: i, step, status: "running" });
         await this.runStep(step, resolve(step));
         await this.page!.waitForLoadState("domcontentloaded").catch(() => {});
@@ -327,8 +372,25 @@ class Session {
         if (step.url) await page.goto(step.url, { waitUntil: "domcontentloaded" });
         break;
       case "click": {
-        const loc = await this.resolveLocator(step);
-        await loc.click(opts);
+        const hasCoords = typeof step.x === "number" && typeof step.y === "number";
+        if (step.positional && hasCoords) {
+          // Reproduce a click on empty / non-interactive space by coordinates
+          // (e.g. dismissing an autocomplete dropdown).
+          await page.mouse.click(step.x!, step.y!);
+        } else {
+          try {
+            const loc = await this.resolveLocator(step);
+            await loc.click(opts);
+          } catch (err) {
+            // If the element is obscured/unresolved, fall back to a positional
+            // click at the recorded coordinates.
+            if (hasCoords) {
+              await page.mouse.click(step.x!, step.y!);
+            } else {
+              throw err;
+            }
+          }
+        }
         break;
       }
       case "fill": {
@@ -341,9 +403,16 @@ class Session {
         await loc.selectOption(value, opts);
         break;
       }
-      case "press":
-        if (step.key) await page.keyboard.press(step.key);
+      case "press": {
+        const key = step.key || "Enter";
+        if (step.selectors?.length || step.selector) {
+          const loc = await this.resolveLocator(step);
+          await loc.press(key, opts);
+        } else {
+          await page.keyboard.press(key);
+        }
         break;
+      }
     }
   }
 

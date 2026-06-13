@@ -116,9 +116,19 @@ export const RECORDER_SOURCE = `
     if (!(t instanceof Element)) return;
     const tag = t.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'OPTION') return;
+    const x = Math.round(e.clientX);
+    const y = Math.round(e.clientY);
     // Prefer the nearest meaningful clickable ancestor for stable selectors.
-    const clickable = t.closest('a, button, [role="button"], [onclick], summary, label') || t;
-    emit('click', clickable instanceof Element ? clickable : t);
+    const clickable = t.closest('a, button, [role="button"], [onclick], summary, label, [tabindex]:not([tabindex="-1"])');
+    if (clickable instanceof Element) {
+      emit('click', clickable, { x, y });
+    } else {
+      // Click on a non-interactive area (e.g. clicking into empty space to
+      // dismiss an autocomplete/overlay). A selector on a big generic element
+      // would click its center, not where the user actually clicked, so we
+      // replay these positionally using the recorded viewport coordinates.
+      emit('click', t, { x, y, positional: true });
+    }
   }, true);
 
   document.addEventListener('change', (e) => {
@@ -135,6 +145,26 @@ export const RECORDER_SOURCE = `
       } else {
         emit('fill', t, { value: '', secret: true });
       }
+    }
+  }, true);
+
+  // Pressing Enter in a field often submits a form WITHOUT a preceding 'change'
+  // event firing, so we capture the current value here as a fill (it collapses
+  // with any change-based fill) and then record the Enter press so the submit
+  // replays naturally instead of relying on a recorded navigation URL.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const t = e.target;
+    if (!(t instanceof Element)) return;
+    const tag = t.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') {
+      const type = (t.getAttribute('type') || 'text').toLowerCase();
+      if (type === 'password') {
+        emit('fill', t, { value: '', secret: true });
+      } else if (type !== 'checkbox' && type !== 'radio') {
+        emit('fill', t, { value: t.value });
+      }
+      emit('press', t, { key: 'Enter' });
     }
   }, true);
 })();

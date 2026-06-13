@@ -166,7 +166,16 @@ export default function PlayModal({
             />
           </div>
           </div>
-          <StreamCanvas canvasRef={canvasRef} interactive={false} send={send} />
+          <StreamCanvas
+            canvasRef={canvasRef}
+            interactive
+            send={send}
+            hint={
+              phase === "done"
+                ? "Live browser — click and type to control it yourself"
+                : "You can also take over: click and type in this browser"
+            }
+          />
         </div>
       )}
     </Modal>

@@ -20,6 +20,11 @@ export interface WorkflowStep {
   key?: string;
   /** If set, this step's value is driven by the variable with this key. */
   variableKey?: string;
+  /** Recorded viewport click coordinates (positional / fallback clicks). */
+  x?: number;
+  y?: number;
+  /** When true, replay this click by coordinates rather than by selector. */
+  positional?: boolean;
 }
 
 export interface WorkflowVariable {
