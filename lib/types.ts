@@ -8,6 +8,8 @@ export interface WorkflowStep {
   type: StepType;
   /** CSS selector the action targets (not used for "goto"). */
   selector?: string;
+  /** Ordered candidate selectors (best/most stable first) tried at playback. */
+  selectors?: string[];
   /** Human readable label describing the target element. */
   label?: string;
   /** For goto. */

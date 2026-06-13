@@ -128,6 +128,7 @@ export default function PlayModal({
 
       {(phase === "running" || phase === "done") && (
         <div className="space-y-3">
+          <div className="sticky top-0 z-20 -mx-1 space-y-2 border-b border-slate-200/70 bg-white/95 px-1 pb-2 pt-1 backdrop-blur dark:border-slate-800/70 dark:bg-slate-900/95">
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium">
               {phase === "done" ? (
@@ -163,6 +164,7 @@ export default function PlayModal({
                 }%`,
               }}
             />
+          </div>
           </div>
           <StreamCanvas canvasRef={canvasRef} interactive={false} send={send} />
         </div>

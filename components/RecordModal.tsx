@@ -130,14 +130,14 @@ export default function RecordModal({
 
       {phase === "recording" && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="sticky top-0 z-20 -mx-1 flex items-center justify-between border-b border-slate-200/70 bg-white/95 px-1 py-2 backdrop-blur dark:border-slate-800/70 dark:bg-slate-900/95">
             <span className="flex items-center gap-2 text-sm font-medium text-red-500">
               <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
               Recording — {steps.length} step{steps.length === 1 ? "" : "s"}
             </span>
             <button
               onClick={stop}
-              className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500"
+              className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-500/30 hover:bg-red-500"
             >
               Stop recording
             </button>

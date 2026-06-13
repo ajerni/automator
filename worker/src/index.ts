@@ -9,10 +9,42 @@ import { RECORDER_SOURCE } from "./recorder.js";
 const PORT = Number(process.env.WORKER_PORT || 4000);
 const VIEWPORT = { width: 1280, height: 800 };
 
+// A realistic desktop Chrome user-agent (no "HeadlessChrome" tell). Keep the
+// major version roughly in line with the bundled Chromium.
+const USER_AGENT =
+  process.env.AUTOMATOR_USER_AGENT ||
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36";
+const LOCALE = process.env.AUTOMATOR_LOCALE || "de-CH";
+const TIMEZONE = process.env.AUTOMATOR_TIMEZONE || "Europe/Zurich";
+const ACCEPT_LANGUAGE =
+  process.env.AUTOMATOR_ACCEPT_LANGUAGE || "de-CH,de;q=0.9,en;q=0.8";
+
+// Injected before any page script to mask the most common automation signals
+// that bot-detection systems look for.
+const STEALTH_SOURCE = `
+(() => {
+  try {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    Object.defineProperty(navigator, 'languages', { get: () => ['de-CH', 'de', 'en'] });
+    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+    window.chrome = window.chrome || { runtime: {} };
+    const origQuery = window.navigator.permissions && window.navigator.permissions.query;
+    if (origQuery) {
+      window.navigator.permissions.query = (p) =>
+        p && p.name === 'notifications'
+          ? Promise.resolve({ state: Notification.permission })
+          : origQuery(p);
+    }
+  } catch (e) {}
+})();
+`;
+
 interface Step {
   id: string;
   type: "goto" | "click" | "fill" | "select" | "press";
   selector?: string;
+  /** Ordered candidate selectors (best/most stable first). */
+  selectors?: string[];
   label?: string;
   url?: string;
   value?: string;
@@ -51,9 +83,22 @@ class Session {
     if (this.browser) return;
     this.browser = await chromium.launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-dev-shm-usage"],
+      args: [
+        "--no-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-blink-features=AutomationControlled",
+      ],
+      ignoreDefaultArgs: ["--enable-automation"],
     });
-    this.context = await this.browser.newContext({ viewport: VIEWPORT });
+    this.context = await this.browser.newContext({
+      viewport: VIEWPORT,
+      userAgent: USER_AGENT,
+      locale: LOCALE,
+      timezoneId: TIMEZONE,
+      extraHTTPHeaders: { "Accept-Language": ACCEPT_LANGUAGE },
+    });
+    // Stealth script must run before the recorder (and any page script).
+    await this.context.addInitScript(STEALTH_SOURCE);
     await this.context.exposeBinding(
       "__automator_record",
       (_source, payload: string) => {
@@ -111,6 +156,7 @@ class Session {
   onRecorded(action: {
     type: string;
     selector?: string;
+    selectors?: string[];
     value?: string;
     label?: string;
     secret?: boolean;
@@ -119,7 +165,12 @@ class Session {
       // Avoid duplicate consecutive identical clicks.
       const last = this.steps[this.steps.length - 1];
       if (last && last.type === "click" && last.selector === action.selector) return;
-      this.pushStep({ type: "click", selector: action.selector, label: action.label });
+      this.pushStep({
+        type: "click",
+        selector: action.selector,
+        selectors: action.selectors,
+        label: action.label,
+      });
     } else if (action.type === "fill") {
       // Collapse repeated typing into the same field to a single step.
       const existing = [...this.steps]
@@ -133,6 +184,7 @@ class Session {
       this.pushStep({
         type: "fill",
         selector: action.selector,
+        selectors: action.selectors,
         value: action.value,
         label: action.label,
         secret: action.secret,
@@ -141,6 +193,7 @@ class Session {
       this.pushStep({
         type: "select",
         selector: action.selector,
+        selectors: action.selectors,
         value: action.value,
         label: action.label,
       });
@@ -238,6 +291,34 @@ class Session {
     }
   }
 
+  // Tries each candidate selector in order and returns a Locator for the first
+  // one that actually resolves on the current page. Falls back to the primary
+  // selector (so the resulting error message is meaningful) if none match.
+  async resolveLocator(step: Step) {
+    const page = this.page!;
+    const candidates =
+      step.selectors && step.selectors.length
+        ? step.selectors
+        : step.selector
+          ? [step.selector]
+          : [];
+    if (candidates.length === 0) {
+      throw new Error(`Step "${step.label ?? step.type}" has no selector`);
+    }
+    for (const candidate of candidates) {
+      try {
+        const loc = page.locator(candidate).first();
+        await loc.waitFor({ state: "visible", timeout: 2500 });
+        return loc;
+      } catch {
+        /* try the next candidate */
+      }
+    }
+    // Nothing matched within the short probes — fall back to the primary with a
+    // longer timeout so it either recovers or throws a clear error.
+    return page.locator(candidates[0]).first();
+  }
+
   async runStep(step: Step, value: string) {
     const page = this.page!;
     const opts = { timeout: 15000 };
@@ -245,15 +326,21 @@ class Session {
       case "goto":
         if (step.url) await page.goto(step.url, { waitUntil: "domcontentloaded" });
         break;
-      case "click":
-        if (step.selector) await page.click(step.selector, opts);
+      case "click": {
+        const loc = await this.resolveLocator(step);
+        await loc.click(opts);
         break;
-      case "fill":
-        if (step.selector) await page.fill(step.selector, value, opts);
+      }
+      case "fill": {
+        const loc = await this.resolveLocator(step);
+        await loc.fill(value, opts);
         break;
-      case "select":
-        if (step.selector) await page.selectOption(step.selector, value, opts);
+      }
+      case "select": {
+        const loc = await this.resolveLocator(step);
+        await loc.selectOption(value, opts);
         break;
+      }
       case "press":
         if (step.key) await page.keyboard.press(step.key);
         break;
