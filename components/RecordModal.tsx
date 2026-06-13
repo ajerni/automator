@@ -20,7 +20,7 @@ interface Variable {
   name: string;
   description: string;
   sampleValue: string;
-  kind: "text" | "select";
+  kind: "text" | "select" | "password";
 }
 
 type Phase = "config" | "recording" | "naming";

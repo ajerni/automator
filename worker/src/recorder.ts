@@ -93,16 +93,19 @@ export const RECORDER_SOURCE = `
   }
 
   function labelFor(el) {
-    const text = (
-      el.getAttribute('aria-label') ||
-      el.getAttribute('placeholder') ||
-      el.innerText ||
-      el.value ||
-      el.getAttribute('name') ||
-      el.getAttribute('title') ||
-      ''
-    ).trim().replace(/\\s+/g, ' ');
-    return text.slice(0, 60) || el.tagName.toLowerCase();
+    const isPassword =
+      el.tagName === 'INPUT' && (el.getAttribute('type') || '').toLowerCase() === 'password';
+    // Never use a password field's value as its label (would leak the secret).
+    const candidates = [
+      el.getAttribute('aria-label'),
+      el.getAttribute('placeholder'),
+      el.getAttribute('name'),
+      el.getAttribute('title'),
+      el.innerText,
+      isPassword ? '' : el.value,
+    ];
+    const text = (candidates.find((c) => c && c.trim()) || '').trim().replace(/\\s+/g, ' ');
+    return text.slice(0, 60) || (isPassword ? 'password' : el.tagName.toLowerCase());
   }
 
   function emit(type, el, extra) {

@@ -63,7 +63,7 @@ interface Variable {
   name: string;
   description: string;
   sampleValue: string;
-  kind: "text" | "select";
+  kind: "text" | "select" | "password";
 }
 
 function send(ws: WebSocket, msg: unknown) {
@@ -252,13 +252,20 @@ class Session {
     const bySelector = new Map<string, string>();
     let counter = 0;
     for (const step of this.steps) {
-      if ((step.type === "fill" && !step.secret) || step.type === "select") {
+      // Every user entry becomes a variable: text fills, selects, and password
+      // fills (passwords keep an empty sample value and are entered at run time).
+      if (step.type === "fill" || step.type === "select") {
         const sigKey = `${step.type}:${step.selector}`;
         let key = bySelector.get(sigKey);
         if (!key) {
           counter += 1;
           key = `var_${counter}`;
           bySelector.set(sigKey, key);
+          const kind: Variable["kind"] = step.secret
+            ? "password"
+            : step.type === "select"
+              ? "select"
+              : "text";
           variables.push({
             key,
             name: (step.label || `value ${counter}`)
@@ -267,8 +274,8 @@ class Session {
               .replace(/^_+|_+$/g, "")
               .slice(0, 40) || `value_${counter}`,
             description: "",
-            sampleValue: step.value ?? "",
-            kind: step.type === "select" ? "select" : "text",
+            sampleValue: step.secret ? "" : (step.value ?? ""),
+            kind,
           });
         }
         step.variableKey = key;

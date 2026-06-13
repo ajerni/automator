@@ -103,6 +103,8 @@ export default function PlayModal({
                       )}
                     </span>
                     <input
+                      type={v.kind === "password" ? "password" : "text"}
+                      autoComplete={v.kind === "password" ? "new-password" : "off"}
                       value={values[v.key] ?? ""}
                       onChange={(e) =>
                         setValues((prev) => ({ ...prev, [v.key]: e.target.value }))

@@ -36,8 +36,8 @@ export interface WorkflowVariable {
   description: string;
   /** Value captured during recording (used as default / example). */
   sampleValue: string;
-  /** Whether it is a text entry or a selection. */
-  kind: "text" | "select";
+  /** Whether it is a text entry, a selection, or a (masked) password entry. */
+  kind: "text" | "select" | "password";
 }
 
 export interface Workflow {
