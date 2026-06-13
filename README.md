@@ -86,6 +86,17 @@ Then sign up, click **Record workflow**, perform your steps in the streamed
 browser, stop, name your variables, and save. Play it back from the workflow
 card, or ask the bot.
 
+## Admin backend
+
+Visit **`/admin`** and sign in with `ADMIN_PASSWORD` from your environment.
+This UI manages all `automator_*` tables only:
+
+- **Users** — create/edit/delete accounts (set a new password via the password field)
+- **Workflows** — edit metadata, steps, and variables (JSON fields)
+- **Runs** — inspect or clean up run history
+
+Add `ADMIN_PASSWORD` to Vercel (and local `.env`) before using in production.
+
 ## Deployment notes
 
 - The Next.js app deploys cleanly to **Vercel**.
@@ -102,6 +113,7 @@ open port, and the browser must reach the worker over `wss://`).
    that uses the official Playwright image with Chromium + OS deps preinstalled).
 3. Environment variables (must match the Vercel app where shared):
    - `AUTH_SECRET` — identical value to the Vercel app (used to verify the WS token).
+   - `ADMIN_PASSWORD` — password for `/admin` database backend (Vercel only).
    - `OPENROUTER_*`, locale/UA overrides — optional, only if you want them on the worker.
    - `PORT` is injected by Render automatically; the worker reads it.
 4. Deploy, then copy the service URL, e.g. `https://automator-worker.onrender.com`.

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-const PUBLIC_PATHS = ["/login", "/signup"];
+const PUBLIC_PATHS = ["/login", "/signup", "/admin"];
 
 async function isAuthed(token: string | undefined): Promise<boolean> {
   if (!token) return false;
@@ -38,5 +38,5 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   // Protect everything except Next internals, the auth API, and static assets.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/auth).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/auth|api/admin|admin).*)"],
 };
