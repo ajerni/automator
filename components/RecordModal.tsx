@@ -143,7 +143,19 @@ export default function RecordModal({
             </button>
           </div>
           <div className="grid gap-3 lg:grid-cols-[1fr_240px]">
-            <StreamCanvas canvasRef={canvasRef} interactive send={send} />
+            <div className="space-y-2">
+              {error && (
+                <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">
+                  {error}
+                </p>
+              )}
+              {!error && steps.length === 0 && status === "ready" && (
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Starting browser… (first load on Render can take up to a minute)
+                </p>
+              )}
+              <StreamCanvas canvasRef={canvasRef} interactive send={send} />
+            </div>
             <StepList steps={steps} />
           </div>
         </div>

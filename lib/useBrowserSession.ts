@@ -69,10 +69,12 @@ export function useBrowserSession({ canvasRef, onEvent }: Options) {
         }
         if (msg.type === "error") {
           setError(msg.error);
+          setStatus("error");
           if (msg.error === "unauthorized") {
-            setStatus("error");
             reject(new Error(msg.error));
           }
+          onEventRef.current?.(msg);
+          return;
         }
         onEventRef.current?.(msg);
       };

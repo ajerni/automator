@@ -1,7 +1,7 @@
 # Official Playwright image ships Chromium + all required OS libraries, which the
 # native PaaS runtimes (Render/Railway/Fly) otherwise lack. Keep the version in
 # sync with the "playwright" dependency in package.json.
-FROM mcr.microsoft.com/playwright:v1.49.1-jammy
+FROM mcr.microsoft.com/playwright:v1.60.0-jammy
 
 WORKDIR /app
 

@@ -168,6 +168,11 @@ export default function PlayModal({
             />
           </div>
           </div>
+          {error && phase === "running" && (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">
+              {error}
+            </p>
+          )}
           <StreamCanvas
             canvasRef={canvasRef}
             interactive
