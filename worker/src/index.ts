@@ -288,20 +288,16 @@ class Session {
         });
       } else if (ev.kind === "keydown") {
         const printable = ev.key && ev.key.length === 1;
+        // A keyDown event carrying `text` already inserts the character, so we
+        // must NOT also dispatch a separate "char" event (that would double it).
         await this.client.send("Input.dispatchKeyEvent", {
-          type: printable ? "keyDown" : "rawKeyDown",
+          type: "keyDown",
           key: ev.key,
           code: ev.code,
           text: printable ? ev.key : undefined,
+          unmodifiedText: printable ? ev.key : undefined,
           windowsVirtualKeyCode: ev.keyCode,
         });
-        if (printable) {
-          await this.client.send("Input.dispatchKeyEvent", {
-            type: "char",
-            key: ev.key,
-            text: ev.key,
-          });
-        }
       } else if (ev.kind === "keyup") {
         await this.client.send("Input.dispatchKeyEvent", {
           type: "keyUp",

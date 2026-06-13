@@ -79,7 +79,7 @@ export default function PlayModal({
   }
 
   return (
-    <Modal title={`Run: ${workflow.name}`} onClose={handleClose} wide>
+    <Modal title={`Run: ${workflow.name}`} onClose={handleClose} wide allowFullscreen>
       {phase === "variables" && (
         <div className="space-y-4">
           {workflow.variables.length === 0 ? (

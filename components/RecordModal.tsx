@@ -104,7 +104,7 @@ export default function RecordModal({
   }
 
   return (
-    <Modal title="Record a workflow" onClose={handleClose} wide>
+    <Modal title="Record a workflow" onClose={handleClose} wide allowFullscreen>
       {phase === "config" && (
         <div className="space-y-4">
           <p className="text-sm text-slate-500 dark:text-slate-400">
