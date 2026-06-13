@@ -6,7 +6,8 @@ import { jwtVerify } from "jose";
 import { chromium, Browser, BrowserContext, Page, CDPSession } from "playwright";
 import { RECORDER_SOURCE } from "./recorder.js";
 
-const PORT = Number(process.env.WORKER_PORT || 4000);
+// Render (and most PaaS) inject the port to listen on via PORT.
+const PORT = Number(process.env.PORT || process.env.WORKER_PORT || 4000);
 const VIEWPORT = { width: 1280, height: 800 };
 
 // A realistic desktop Chrome user-agent (no "HeadlessChrome" tell). Keep the

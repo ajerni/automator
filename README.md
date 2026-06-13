@@ -88,11 +88,28 @@ card, or ask the bot.
 
 ## Deployment notes
 
-- The Next.js app deploys cleanly to Vercel.
-- The worker needs a **persistent host** (a long-lived process that can run
-  Chromium and hold WebSocket connections) — e.g. Railway, Render, Fly.io, or a
-  small VM. Set `WORKER_PUBLIC_URL` to its public `wss://` origin. Vercel
-  serverless functions cannot host the streaming worker.
+- The Next.js app deploys cleanly to **Vercel**.
+- The worker needs a **persistent host** that can run Chromium and hold
+  WebSocket connections. Vercel serverless functions cannot host it.
+
+### Deploying the worker on Render
+
+Use a **Web Service** (NOT a "Background Worker" — that type has no public URL or
+open port, and the browser must reach the worker over `wss://`).
+
+1. New → **Web Service** → connect the GitHub repo (`ajerni/automator`).
+2. **Runtime: Docker**, **Root Directory: `worker`** (it contains the `Dockerfile`
+   that uses the official Playwright image with Chromium + OS deps preinstalled).
+3. Environment variables (must match the Vercel app where shared):
+   - `AUTH_SECRET` — identical value to the Vercel app (used to verify the WS token).
+   - `OPENROUTER_*`, locale/UA overrides — optional, only if you want them on the worker.
+   - `PORT` is injected by Render automatically; the worker reads it.
+4. Deploy, then copy the service URL, e.g. `https://automator-worker.onrender.com`.
+5. In the **Vercel** project set `WORKER_PUBLIC_URL` to that `https://…` URL. The
+   browser converts it to `wss://…` automatically. Redeploy the Vercel app.
+
+The same approach works on Railway / Fly.io / a small VM — any host that runs the
+Docker image and exposes a public HTTPS/WSS port.
 
 ## Project layout
 
