@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AuthLayout, Field } from "../login/page";
+import { AuthLayout, Field } from "@/components/AuthLayout";
 
 export default function SignupPage() {
   const router = useRouter();
