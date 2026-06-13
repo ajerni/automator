@@ -1,0 +1,23 @@
+# Secrets & local-only reference files
+.env
+.env.local
+main_example.py
+overview_example.txt
+instructions.md
+
+# Dependencies
+node_modules/
+worker/node_modules/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Build / cache
+*.tsbuildinfo
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
