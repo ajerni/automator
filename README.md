@@ -133,4 +133,5 @@ worker/         Playwright streaming worker (record + replay + screencast)
 scripts/        DB schema + init script
 ```
 
-npm run dev
+Running live at: https://automator-weld.vercel.app/
+
